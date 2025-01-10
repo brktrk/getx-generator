@@ -5,7 +5,7 @@
 
 ## Installation
 
-This extension can be installed from the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=brktrk.getx-generator) or by [searching within VSCode](https://code.visualstudio.com/docs/editor/extension-gallery#_search-for-an-extension).
+This extension can be installed from the [VSCode Marketplace](https://marketplace.visualstudio.com/items?itemName=brktrk.getx-generator-for-flutter) or by [searching within VSCode](https://code.visualstudio.com/docs/editor/extension-gallery#_search-for-an-extension).
 
 ## Commands
 

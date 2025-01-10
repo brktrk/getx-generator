@@ -167,6 +167,7 @@ function addAssetsAndFontsToPubspec(pubspecPath, data) {
  * @param {string} directoryPath
  * @param {string} projectName
  */
+
 async function moveFile(directoryPath, projectName) {
     try {
         vscode.extensions.all.forEach((e) => {
@@ -177,7 +178,8 @@ async function moveFile(directoryPath, projectName) {
                 const sourceAssetsPath = vscode.Uri.file(path.join(e.extensionPath, 'getx_brktrk', 'assets'));
                 const destinationAssetsPath = vscode.Uri.file(path.join(directoryPath, 'assets'));
   
-                vscode.workspace.fs.copy(sourcePath, destinationPath, { overwrite: true }).then(() => {
+                // Move the lib files
+                vscode.workspace.fs.copy(sourcePath, destinationPath, { overwrite: true, recursive: true }).then(() => {
                     replace.sync({
                         files: [
                             `${directoryPath}/lib/**/*.dart`
@@ -187,11 +189,13 @@ async function moveFile(directoryPath, projectName) {
                         countMatches: true,
                     });
 
-                    console.log("Files moved and placeholders replaced.");
+                    console.log("Lib files moved and placeholders replaced.");
                 }).catch(err => {
-                    console.error("Error during file copy:", err);
+                    console.error("Error during lib file copy:", err);
                 });
-                vscode.workspace.fs.copy(sourceAssetsPath, destinationAssetsPath, { overwrite: true }).then(() => {
+
+                // Move assets files (ensure recursive flag)
+                vscode.workspace.fs.copy(sourceAssetsPath, destinationAssetsPath, { overwrite: true, recursive: true }).then(() => {
                     console.log("Assets files moved.");
                 }).catch(err => {
                     console.error("Error during assets file copy:", err);
@@ -203,6 +207,7 @@ async function moveFile(directoryPath, projectName) {
         vscode.window.showErrorMessage(`Error during file move: ${error.message}`);
     }
 }
+
 
 module.exports = {
     getxInstall
