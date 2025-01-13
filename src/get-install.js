@@ -32,7 +32,7 @@ async function getxInstall() {
         cp.exec(`
             cd "${directoryPath}" &&
             flutter pub remove get flutter_spinkit responsive_framework google_fonts flutter_datetime_picker
-        `, (err, stdout, stderr) => {
+        `, async (err, stdout, stderr) => {
             if (err) {
                 console.error('Error during dependency removal:', err);
                 return;
@@ -46,8 +46,8 @@ async function getxInstall() {
             lines = data.split('\n');
 
             // Kaldırmak istenen bağımlılıkları `dependencies` ve `dev_dependencies` kısmından temizle
-            removeDependencies(lines, 'dependencies');
-            removeDependencies(lines, 'dev_dependencies');
+            await removeDependencies(lines, 'dependencies');
+            await removeDependencies(lines, 'dev_dependencies');
 
             // Yeni bağımlılıkları ekle
             const newDependencies = [
@@ -59,7 +59,7 @@ async function getxInstall() {
             var index = 0;
             for (let i = 0; i < lines.length; i++) {
                 if (lines[i].includes('dev_dependencies')) {
-                    index = i;
+                    index = i+1;
                     break;
                 }
             }
@@ -99,32 +99,49 @@ async function getxInstall() {
  * @param {Array} lines - pubspec.yaml satırları
  * @param {string} section - 'dependencies' veya 'dev_dependencies'
  */
-function removeDependencies(lines, section) {
-    let inSection = false;
+ async function removeDependencies(lines, section) {
+    let inDependenciesSection = false;
+    let foundFlutterSdk = false;
+
+    // Satırları kontrol et
     for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes(section)) {
-            inSection = true;  // Başlangıç
-        }
-        if (inSection && lines[i].includes('flutter:')) {
-            inSection = false;  // Bitim, `flutter:` kısmına geldi
+        const line = lines[i].trim(); // Satırdaki boşlukları temizle
+
+        // dependencies kısmına ulaşıldığında başla
+        if (line.startsWith('dependencies:')) {
+            inDependenciesSection = true;
         }
 
-        // Kaldırmak istediğiniz bağımlılıklar
-        const dependenciesToRemove = [
-            'get:',
-            'flutter_spinkit:',
-            'responsive_framework:',
-            'google_fonts:',
-            'flutter_datetime_picker:'
-        ];
+        // `flutter:` satırını bulduğunda kontrol et
+        if (inDependenciesSection && line.startsWith('flutter:')) {
+            console.log("Found 'flutter:' line:", line);
+        }
 
-        // Kaldırılması gereken satırları kontrol et ve sil
-        if (inSection && dependenciesToRemove.some(dep => lines[i].includes(dep))) {
+        // Bir sonraki satırda sdk: flutter kontrol et
+        if (inDependenciesSection && lines[i + 1] && lines[i + 1].includes('sdk: flutter')) {
+            console.log("Found 'sdk: flutter' in the next line:", lines[i + 1]);
+        }
+
+        // flutter ve sdk: flutter satırlarını aynı anda bulduğunda
+        if (inDependenciesSection && line.startsWith('flutter:') && lines[i + 1] && lines[i + 1].includes('sdk: flutter')) {
+            foundFlutterSdk = true;
+            console.log("Found 'flutter:' and 'sdk: flutter' together");
+        }
+
+        // Eğer flutter sdk kısmı bulunmuşsa, alttaki bağımlılıkları sil
+        if (foundFlutterSdk && line !== '' && !line.startsWith('flutter:') && !line.includes('sdk: flutter') && !line.startsWith('dev_dependencies:')) {
             lines.splice(i, 1);
-            i--;  // Kaldırıldıktan sonra bir satır geri git
+            i--;  // Silinen satırdan sonra bir satır geri git
+        }
+
+        // dev_dependencies kısmına geldiğinde, işlemi sonlandır
+        if (line.startsWith('dev_dependencies:')) {
+            break;
         }
     }
 }
+
+
 
 /**
  * assets ve fonts kısmını pubspec.yaml dosyasına ekler
@@ -167,7 +184,6 @@ function addAssetsAndFontsToPubspec(pubspecPath, data) {
  * @param {string} directoryPath
  * @param {string} projectName
  */
-
 async function moveFile(directoryPath, projectName) {
     try {
         vscode.extensions.all.forEach((e) => {
@@ -178,8 +194,7 @@ async function moveFile(directoryPath, projectName) {
                 const sourceAssetsPath = vscode.Uri.file(path.join(e.extensionPath, 'getx_brktrk', 'assets'));
                 const destinationAssetsPath = vscode.Uri.file(path.join(directoryPath, 'assets'));
   
-                // Move the lib files
-                vscode.workspace.fs.copy(sourcePath, destinationPath, { overwrite: true, recursive: true }).then(() => {
+                vscode.workspace.fs.copy(sourcePath, destinationPath, { overwrite: true }).then(() => {
                     replace.sync({
                         files: [
                             `${directoryPath}/lib/**/*.dart`
@@ -189,13 +204,11 @@ async function moveFile(directoryPath, projectName) {
                         countMatches: true,
                     });
 
-                    console.log("Lib files moved and placeholders replaced.");
+                    console.log("Files moved and placeholders replaced.");
                 }).catch(err => {
-                    console.error("Error during lib file copy:", err);
+                    console.error("Error during file copy:", err);
                 });
-
-                // Move assets files (ensure recursive flag)
-                vscode.workspace.fs.copy(sourceAssetsPath, destinationAssetsPath, { overwrite: true, recursive: true }).then(() => {
+                vscode.workspace.fs.copy(sourceAssetsPath, destinationAssetsPath, { overwrite: true }).then(() => {
                     console.log("Assets files moved.");
                 }).catch(err => {
                     console.error("Error during assets file copy:", err);
@@ -207,7 +220,6 @@ async function moveFile(directoryPath, projectName) {
         vscode.window.showErrorMessage(`Error during file move: ${error.message}`);
     }
 }
-
 
 module.exports = {
     getxInstall
